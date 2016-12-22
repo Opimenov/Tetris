@@ -137,7 +137,7 @@ class Shape():
         
             returns the current rotation direction
         '''
-        print 'get_rotation_dir returned', self.rotation_dir
+#        print 'get_rotation_dir returned', self.rotation_dir
         return self.rotation_dir
 
     def can_rotate(self, board):
@@ -164,14 +164,14 @@ class Shape():
             new_x = self.blocks[1].x - direc * self.blocks[1].y + direc * block.y
             new_y = self.blocks[1].y + direc * self.blocks[1].x - direc * block.x
             #check what we are getting
-            print 'old x : ', block.x, ' new x : ', new_x
-            print 'old y : ', block.y, ' new y : ', new_y            
+#            print 'old x : ', block.x, ' new x : ', new_x
+#            print 'old y : ', block.y, ' new y : ', new_y            
             if not board.can_move(new_x,new_y):
-                print 'cannot rotate'
+#                print 'cannot rotate'
                 return False
             else:
                 continue
-        print 'can rotate'
+#        print 'can rotate'
         return True
 
 
@@ -187,16 +187,16 @@ class Shape():
         '''    
 
         direc = self.get_rotation_dir()
-        print 'rotation dir',direc
+        #print 'rotation dir',direc
         shape_blocks = self.blocks
-        print self.can_rotate(board)
+        #print self.can_rotate(board)
         if self.can_rotate(board):
             for block in shape_blocks:
                 new_x = self.blocks[1].x - direc * self.blocks[1].y + direc * block.y
                 dx = new_x - block.x 
                 new_y = self.blocks[1].y + direc * self.blocks[1].x - direc * block.x
                 dy =  new_y -block.y
-                print 'dx ', dx, '  || dy ', dy
+                #print 'dx ', dx, '  || dy ', dy
                 block.move(dx,dy)
 
         ### DO NOT touch it. proven to be in working order
@@ -344,42 +344,28 @@ class Board():
         if x < 0 or x > self.width-1 or y < 0 or y > self.height-1 or (x,y) in self.grid.keys():
             return False
         else:
-
             return True
-
-        
-        
 
     def add_shape(self, shape):
         ''' Parameter: shape - type:Shape
-            
             add a shape to the grid, i.e.
             add each block to the grid using its
             (x, y) coordinates as a dictionary key
-
         '''
-        
         for block in shape.get_blocks():
-            print self.grid
-            print block.x, block.y
             self.grid[(block.x, block.y)] = block        
-
 
     def delete_row(self, y):
         ''' Parameters: y - type:int
-
             remove all the blocks in row y
             to remove a block you must remove it from the grid
             and erase it from the screen.
-            If you dont remember how to erase a graphics object
-            from the screen, take a look at the Graphics Library
-            handout
-            
         '''
+        #####WORKS#######
+        for x in range(0, self.width):
+            self.grid[(x,y)].undraw()
+            del self.grid[(x,y)]
         
-        ####### DON'T FORGET TO FINISH'
-        pass
-    
     def is_row_complete(self, y):        
         ''' Parameter: y - type: int
             Return value: type: bool
@@ -388,15 +374,14 @@ class Board():
             check if there is a block in the grid (use the in operator) 
             if there is one square that is not occupied, return False
             otherwise return True
-            
         '''
-        
-
-        print str(self.grid)
-        for x in [0..self.width]:
-            print (x,y)
+        ######WORKS########
+        for x in range(0,self.width):
+            print (x,y),
             if (x,y) not in self.grid:
+                print "False"
                 return False
+        print "True"
         return True
     
     def move_down_rows(self, y_start):
@@ -420,15 +405,11 @@ class Board():
                 if it is,
                     delete the row
                     move all rows down starting at row y - 1
-
         '''
-        ####### DON'T FORGET TO FINISH'        
-        print y
         for y in range(0, self.height):
-            print '  ',  y, '  '
             if self.is_row_complete(y):
-                for x in range(0, self.width):
-                    del self.grid[(x,y)]
+                self.delete_row(y)
+                self.move_down_rows(y)
                     
     def game_over(self):
         ''' display "Game Over !!!" message in the center of the board
@@ -524,7 +505,8 @@ class Tetris():
         elif tup == (0,1):
             self.board.add_shape(self.current_shape)
             self.current_shape = self.create_new_shape()
-            self.board.draw_shape(self.current_shape)            
+            self.board.draw_shape(self.current_shape) 
+            self.board.remove_complete_rows()
         else:
             return False
 
@@ -554,7 +536,7 @@ class Tetris():
         '''
         #key is used to get the coordianates dx and dy to be used in the do_move method 
         key = event.keysym
-        print key
+        #print key
         if key == 'Up':
             self.do_rotate()
             return
