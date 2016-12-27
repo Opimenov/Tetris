@@ -301,11 +301,52 @@ class Board():
         self.width = width
         self.height = height
 
+        #set the var that defines how much speed should increase 
+        self.delta_delay = 0
+        self.board_delay = 2000 #ms
+
+
         # create a canvas to draw the tetris shapes on
         self.canvas = CanvasFrame(win, self.width * Block.BLOCK_SIZE*2,
                                         self.height * Block.BLOCK_SIZE)
         self.canvas.setBackground('light gray')
 
+        #draw a vertical line to separate gaming part from info part
+        line = Line(Point(self.width * Block.BLOCK_SIZE, 0),\
+                          Point(self.width * Block.BLOCK_SIZE,self.height * Block.BLOCK_SIZE ))
+        line.draw(self.canvas)
+
+        #display rules of the game
+        rules = Text(Point(self.canvas.getWidth()/1.35, self.canvas.getHeight()/1.5),\
+                     '        INSTRUCTIONS :            \n\n'+\
+                     '*   <- | ->  arrows to move         \n'+\
+                     '*   "up" arrow to rotate               \n'+\
+                     '*   "down" arrow to move down\n'+\
+                     '*   "space" to drop                      \n'+\
+                     '*   "p" to pause                           \n'+\
+                     '*   "s" to resume                         \n'+\
+                     '*   "d" to show debug info          \n\n'+\
+                     '         SCORING :                       \n\n'+\
+                     '*   1   point   - 1 row                   \n'+\
+                     '*   4   points - 2 rows                  \n'+\
+                     '*   9   points - 3 rows                  \n'+\
+                     '* 16   points - 4 rows                  \n' )
+        rules.draw(self.canvas)
+
+        #set up score counter and text holder for it
+        self.score = 0
+        self.score_text = Text(Point(self.canvas.getWidth()/1.35,\
+                                     self.canvas.getHeight()/3), 'SCORE : '+str(self.score))
+        self.score_text.draw(self.canvas)
+
+        #speed to display
+        self.speed = self.board_delay - self.delta_delay
+        self.speed_text = Text(Point(self.canvas.getWidth()/1.35,\
+                                     self.canvas.getHeight()/3.5), 'DROP DOWN DELAY ms : '+\
+                                str(self.speed))
+        self.speed_text.draw(self.canvas)
+        
+        
         # create an empty dictionary
         # currently we have no shapes on the board
         self.grid = {}
@@ -350,6 +391,37 @@ class Board():
         '''
         for block in shape.get_blocks():
             self.grid[(block.x, block.y)] = block        
+
+    def update_delay(self):
+        ''' update drop down delay '''
+        self.speed = self.board_delay - self.delta_delay
+        self.speed_text.undraw()
+        self.speed_text = Text(Point(self.canvas.getWidth()/1.35,\
+                                     self.canvas.getHeight()/3.5), 'DROP DOWN DELAY ms : '+\
+                                str(self.speed))
+        self.speed_text.draw(self.canvas)
+
+            
+    def update_score(self, n):
+        ''' Parameters: n - type: int
+           update the score based on the number of
+           rows deleted in one move
+        '''
+        #update score value
+        if n == 1:
+            self.score += 1
+        elif n == 2:
+            self.score += 4
+        elif n == 3:
+            self.score += 9
+        elif n == 4:
+            self.score += 16
+        #update score text
+        self.score_text.undraw()
+        self.score_text = Text(Point(self.canvas.getWidth()/1.35,\
+                                     self.canvas.getHeight()/3), 'SCORE : '+str(self.score))
+        self.score_text.draw(self.canvas)
+
 
     def delete_row(self, y):
         ''' Parameters: y - type:int
@@ -400,13 +472,22 @@ class Board():
             1. for each row, y, 
             2. check if the row is complete
                 if it is,
+                    update complete rows counter
                     delete the row
                     move all rows down starting at row y - 1
+               update score
         '''
+        complete_rows = 0
         for y in range(0, self.height):
             if self.is_row_complete(y):
+                complete_rows += 1
                 self.delete_row(y)
                 self.move_down_rows(y-1)
+        self.update_score(complete_rows)
+        #increase speed
+        if (complete_rows != 0):
+            self.delta_delay += self.score
+            self.update_delay()
                     
     def game_over(self):
         ''' display "Game Over" message in the center of the board
@@ -438,10 +519,11 @@ class Tetris():
     BOARD_HEIGHT = 20
     onPause = False
     
+    
     def __init__(self, win):
         self.board = Board(win, self.BOARD_WIDTH, self.BOARD_HEIGHT)
         self.win = win
-        self.delay = 2000 #ms
+        self.delay = self.board.board_delay #ms
 
         # sets up the keyboard events
         # when a key is called the method key_pressed will be called
@@ -454,9 +536,10 @@ class Tetris():
         # draw_shape method in the Board class)
         self.board.draw_shape(self.current_shape)
         self.animate_shape()
-        # animate  the shape! <<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-
+        #initialize pause text for later use when p is pressed
+        self.pause = Text(Point(self.board.canvas.getWidth()/4,\
+                               self.board.canvas.getHeight()/2), 'PAUSE')
 
     def create_new_shape(self):
         ''' Return value: type: Shape
@@ -468,6 +551,7 @@ class Tetris():
         #pick a random number from the SHAPES list attribute of the tetris class
         #create new shape
         return  random.choice(self.SHAPES)(Point(int(self.BOARD_WIDTH/2),0))
+
         
     def animate_shape(self):
         ''' animate the shape - move down at equal intervals
@@ -475,7 +559,7 @@ class Tetris():
         '''
         if (not self.onPause):
             self.do_move('Down')
-            self.win.after(self.delay, self.animate_shape)
+            self.win.after(self.delay - self.board.delta_delay, self.animate_shape)
     
     def do_move(self, direction):
         ''' Parameters: direction - type: string
@@ -537,13 +621,17 @@ class Tetris():
         key = event.keysym
         #print key
         if key == 'Up':
-            self.do_rotate()
+            if not self.onPause:
+                self.do_rotate()
             return
         elif key == 'space':
-            while self.do_move('Down'):
-                { }
+            if not self.onPause:
+                while self.do_move('Down'):
+                    { }
         elif key == 'p':
             self.onPause = True
+            self.pause.draw(self.board.canvas)
+            
         elif  key == 'd':
             iter = self.board.grid.iterkeys()
             for pair in sorted(iter):
@@ -551,9 +639,11 @@ class Tetris():
             print
         elif key == 's':
             self.onPause = False
+            self.pause.undraw()
             self.animate_shape()
         else:
-            self.do_move(key)
+            if not self.onPause:
+                self.do_move(key)
        
 ################################################################
 # Start the game
