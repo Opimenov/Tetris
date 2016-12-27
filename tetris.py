@@ -15,11 +15,12 @@ class Block(Rectangle):
     '''
 
     BLOCK_SIZE = 30
-    OUTLINE_WIDTH = 3
+    OUTLINE_WIDTH = 1
 
     def __init__(self, pos, color):
         self.x = pos.x
         self.y = pos.y
+        self.color = color
         
         p1 = Point(pos.x*Block.BLOCK_SIZE + Block.OUTLINE_WIDTH,
                    pos.y*Block.BLOCK_SIZE + Block.OUTLINE_WIDTH)
@@ -163,15 +164,10 @@ class Shape():
             direc = self.get_rotation_dir()
             new_x = self.blocks[1].x - direc * self.blocks[1].y + direc * block.y
             new_y = self.blocks[1].y + direc * self.blocks[1].x - direc * block.x
-            #check what we are getting
-#            print 'old x : ', block.x, ' new x : ', new_x
-#            print 'old y : ', block.y, ' new y : ', new_y            
             if not board.can_move(new_x,new_y):
-#                print 'cannot rotate'
                 return False
             else:
                 continue
-#        print 'can rotate'
         return True
 
 
@@ -306,7 +302,7 @@ class Board():
         self.height = height
 
         # create a canvas to draw the tetris shapes on
-        self.canvas = CanvasFrame(win, self.width * Block.BLOCK_SIZE,
+        self.canvas = CanvasFrame(win, self.width * Block.BLOCK_SIZE*2,
                                         self.height * Block.BLOCK_SIZE)
         self.canvas.setBackground('light gray')
 
@@ -361,7 +357,6 @@ class Board():
             to remove a block you must remove it from the grid
             and erase it from the screen.
         '''
-        #####WORKS#######
         for x in range(0, self.width):
             self.grid[(x,y)].undraw()
             del self.grid[(x,y)]
@@ -375,28 +370,30 @@ class Board():
             if there is one square that is not occupied, return False
             otherwise return True
         '''
-        ######WORKS########
         for x in range(0,self.width):
-            print (x,y),
             if (x,y) not in self.grid:
-                print "False"
                 return False
-        print "True"
         return True
     
     def move_down_rows(self, y_start):
         ''' Parameters: y_start - type:int                        
-
             for each row from y_start to the top
                 for each column
                     check if there is a block in the grid
                     if there is, remove it from the grid
                     and move the block object down on the screen
                     and then place it back in the grid in the new position
-
         '''
-        ####### DON'T FORGET TO FINISH'        
-        pass
+        y = y_start
+        while y >= 0:
+            for x in range(0,self.width):
+                if  (x,y) in self.grid:
+                    tb = self.grid[(x,y)]
+                    self.grid[(x,y)].undraw()
+                    del self.grid[(x,y)]                    
+                    self.grid[(x, y + 1)] = Block(Point(tb.x,tb.y+1),tb.color)
+                    self.grid[(x,y+1)].draw(self.canvas)
+            y -= 1
     
     def remove_complete_rows(self):
         ''' removes all the complete rows
@@ -409,15 +406,14 @@ class Board():
         for y in range(0, self.height):
             if self.is_row_complete(y):
                 self.delete_row(y)
-                self.move_down_rows(y)
+                self.move_down_rows(y-1)
                     
     def game_over(self):
-        ''' display "Game Over !!!" message in the center of the board
+        ''' display "Game Over" message in the center of the board
              use the Text class from the graphics library
         '''
-        ####### DON'T FORGET TO FINISH'        
-        pass        
-
+        gg = Text(Point(self.canvas.getWidth()/2, self.canvas.getHeight()/2), 'GAME OVER')
+        gg.draw(self.canvas)
 
 ############################################################
 # TETRIS CLASS
@@ -440,6 +436,7 @@ class Tetris():
     DIRECTION = {'Left':(-1, 0), 'Right':(1, 0), 'Down':(0, 1)}
     BOARD_WIDTH = 10
     BOARD_HEIGHT = 20
+    onPause = False
     
     def __init__(self, win):
         self.board = Board(win, self.BOARD_WIDTH, self.BOARD_HEIGHT)
@@ -457,8 +454,8 @@ class Tetris():
         # draw_shape method in the Board class)
         self.board.draw_shape(self.current_shape)
         self.animate_shape()
-        # For Step 9:  animate the shape!
-        ####  YOUR CODE HERE ####
+        # animate  the shape! <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 
     def create_new_shape(self):
@@ -476,9 +473,9 @@ class Tetris():
         ''' animate the shape - move down at equal intervals
             specified by the delay attribute
         '''
-        
-        self.do_move('Down')
-        self.win.after(self.delay, self.animate_shape)
+        if (not self.onPause):
+            self.do_move('Down')
+            self.win.after(self.delay, self.animate_shape)
     
     def do_move(self, direction):
         ''' Parameters: direction - type: string
@@ -505,8 +502,10 @@ class Tetris():
         elif tup == (0,1):
             self.board.add_shape(self.current_shape)
             self.current_shape = self.create_new_shape()
-            self.board.draw_shape(self.current_shape) 
-            self.board.remove_complete_rows()
+            if (self.board.draw_shape(self.current_shape)): 
+                self.board.remove_complete_rows()
+            else:
+                self.board.game_over()
         else:
             return False
 
@@ -543,6 +542,16 @@ class Tetris():
         elif key == 'space':
             while self.do_move('Down'):
                 { }
+        elif key == 'p':
+            self.onPause = True
+        elif  key == 'd':
+            iter = self.board.grid.iterkeys()
+            for pair in sorted(iter):
+                print pair,
+            print
+        elif key == 's':
+            self.onPause = False
+            self.animate_shape()
         else:
             self.do_move(key)
        
