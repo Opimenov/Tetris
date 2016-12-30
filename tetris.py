@@ -346,6 +346,18 @@ class Board():
                                 str(self.speed))
         self.speed_text.draw(self.canvas)
         
+        #file handle to read and write best result
+        self.result_file = self.read_best_result()
+        
+        #best_score and best speed so far
+        if (self.result_file is not None):
+            lines = self.result_file.readlines()
+
+            self.best_score = int(lines[0])
+            self.best_speed = int(lines[1])
+        else:
+            self.best_score = 0
+            self.best_speed = 0
         
         # create an empty dictionary
         # currently we have no shapes on the board
@@ -495,6 +507,34 @@ class Board():
         '''
         gg = Text(Point(self.canvas.getWidth()/2, self.canvas.getHeight()/2), 'GAME OVER')
         gg.draw(self.canvas)
+        self.save_result()
+
+    def save_result(self):
+        ''' save current score and drop down speed in a champion.txt file'''
+        if (self.score > self.best_score):
+            self.result_file = self.read_best_result()
+            self.result_file.truncate(0) #erase file info
+            self.result_file.write(str(self.score)+'\n'+str(self.speed))
+            self.result_file.close()
+            congrats = Text(Point(self.canvas.getWidth()/4,  self.canvas.getHeight()/4), 'CONGRATULATIONS\n'+\
+                            'YOU ARE THE NEW CHAMPION\nprevious best result: \nscore = %d\n speed = %d' % \
+                            (self.best_score, self.best_speed) )
+            congrats.draw(self.canvas)
+        else:
+            self.result_file.close()
+
+    def read_best_result(self):
+        ''' read previous result to determine if current result is better and
+            needs to be saved'''
+        try: 
+            r_file = open('./champion.txt', 'r+')
+        except IOError, e:
+            print 'file open error :', e
+            return None
+        return r_file
+        
+    
+        
 
 ############################################################
 # TETRIS CLASS
@@ -529,6 +569,9 @@ class Tetris():
         # when a key is called the method key_pressed will be called
         self.win.bind_all('<Key>', self.key_pressed)
 
+        #create next shape to be displayed
+        self.next_shape = self.create_new_shape()
+        
         # set the current shape to a random new shape
         self.current_shape = self.create_new_shape()
 
@@ -585,7 +628,8 @@ class Tetris():
             return True
         elif tup == (0,1):
             self.board.add_shape(self.current_shape)
-            self.current_shape = self.create_new_shape()
+            self.current_shape = self.next_shape
+            self.next_shape = self.create_new_shape()
             if (self.board.draw_shape(self.current_shape)): 
                 self.board.remove_complete_rows()
             else:
