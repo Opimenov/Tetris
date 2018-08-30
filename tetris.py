@@ -1,546 +1,10 @@
-from graphics import *
-import random
+from shapes import *
+from board import Board
+from graphics import Text, Window
+from random import random
 
-############################################################
-# BLOCK CLASS
-############################################################
 
-class Block(Rectangle):
-    ''' Block class:
-        Implement a block for a tetris piece
-        Attributes: x - type: int
-                    y - type: int
-        specify the position on the tetris board
-        in terms of the square grid
-    '''
-
-    BLOCK_SIZE = 30
-    OUTLINE_WIDTH = 1
-
-    def __init__(self, pos, color):
-        self.x = pos.x
-        self.y = pos.y
-        self.color = color
-        
-        p1 = Point(pos.x*Block.BLOCK_SIZE + Block.OUTLINE_WIDTH,
-                   pos.y*Block.BLOCK_SIZE + Block.OUTLINE_WIDTH)
-        p2 = Point(p1.x + Block.BLOCK_SIZE, p1.y + Block.BLOCK_SIZE)
-
-        Rectangle.__init__(self, p1, p2)
-        self.setWidth(Block.OUTLINE_WIDTH)
-        self.setFill(color)
-
-    def can_move(self, board, dx, dy):
-        ''' Parameters: dx - type: int
-                        dy - type: int
-
-            Return value: type: bool
-                        
-            checks if the block can move dx squares in the x direction
-            and dy squares in the y direction
-            Returns True if it can, and False otherwise
-        '''
-
-        new_x = self.x + dx
-        new_y = self.y + dy        
-        return board.can_move(new_x, new_y)
-        
-    
-    def move(self, dx, dy):
-        ''' Parameters: dx - type: int
-                        dy - type: int
-                        
-            moves the block dx squares in the x direction
-            and dy squares in the y direction
-        '''
-
-        self.x += dx
-        self.y += dy
-
-        Rectangle.move(self, dx*Block.BLOCK_SIZE, dy*Block.BLOCK_SIZE)
-
-############################################################
-# SHAPE CLASS
-############################################################
-
-class Shape():
-    ''' Shape class:
-        Base class for all the tetris shapes
-        Attributes: blocks - type: list - the list of blocks making up the shape
-                    rotation_dir - type: int - the current rotation direction of the shape
-                    shift_rotation_dir - type: Boolean - whether or not the shape rotates
-    '''
-
-    def __init__(self, coords, color):
-        self.blocks = []
-        self.rotation_dir = 1
-        ### A boolean to indicate if a shape shifts rotation direction or not.
-        ### Defaults to false since only 3 shapes shift rotation directions (I, S and Z)
-        self.shift_rotation_dir = False
-        
-        for pos in coords:
-            self.blocks.append(Block(pos, color))
-
-    def get_blocks(self):
-        '''
-           returns the list of blocks
-        '''
-        return self.blocks
-
-    def draw(self, win):
-        ''' Parameter: win - type: CanvasFrame
-
-            Draws the shape:
-            i.e. draws each block
-        ''' 
-        for block in self.blocks:
-            block.draw(win)
-
-    def move(self, dx, dy):
-        ''' Parameters: dx - type: int
-                        dy - type: int
-
-            moves the shape dx squares in the x direction
-            and dy squares in the y direction, i.e.
-            moves each of the blocks
-        '''
-        for block in self.blocks:
-            block.move(dx, dy)
-
-    def can_move(self, board, dx, dy):
-        ''' Parameters: dx - type: int
-                        dy - type: int
-
-            Return value: type: bool
-                        
-            checks if the shape can move dx squares in the x direction
-            and dy squares in the y direction, i.e.
-            check if each of the blocks can move
-            Returns True if all of them can, and False otherwise
-           
-        '''
-
-        #since a shape is a collection of blocks all we need to do
-        #is to check if every block in the shape can be moved
-        #since we already implemented block.can_move method
-        #this should be easy
-        shape_blocks = self.blocks
-
-        for block in shape_blocks:
-            if not block.can_move(board,dx,dy):
-                return False
-            else:
-                continue
-        return True
-    
-    def get_rotation_dir(self):
-        ''' Return value: type: int
-        
-            returns the current rotation direction
-        '''
-#        print 'get_rotation_dir returned', self.rotation_dir
-        return self.rotation_dir
-
-    def can_rotate(self, board):
-        ''' Parameters: board - type: Board object
-            Return value: type : bool
-            
-            Checks if the shape can be rotated.
-            
-            1. Get the rotation direction using the get_rotation_dir method
-            2. Compute the position of each block after rotation and check if
-            the new position is valid
-            3. If any of the blocks cannot be moved to their new position,
-            return False
-                        
-            otherwise all is good, return True
-        '''
-        
-        #for each block in a shape we calculate new x and y
-        #than check if it is within bounds
-        shape_blocks = self.blocks
-        
-        for block in shape_blocks:
-            direc = self.get_rotation_dir()
-            new_x = self.blocks[1].x - direc * self.blocks[1].y + direc * block.y
-            new_y = self.blocks[1].y + direc * self.blocks[1].x - direc * block.x
-            if not board.can_move(new_x,new_y):
-                return False
-            else:
-                continue
-        return True
-
-
-        
-    def rotate(self, board):
-        ''' Parameters: board - type: Board object
-
-            rotates the shape:
-            1. Get the rotation direction using the get_rotation_dir method
-            2. Compute the position of each block after rotation
-            3. Move the block to the new position
-            
-        '''    
-
-        direc = self.get_rotation_dir()
-        #print 'rotation dir',direc
-        shape_blocks = self.blocks
-        #print self.can_rotate(board)
-        if self.can_rotate(board):
-            for block in shape_blocks:
-                new_x = self.blocks[1].x - direc * self.blocks[1].y + direc * block.y
-                dx = new_x - block.x 
-                new_y = self.blocks[1].y + direc * self.blocks[1].x - direc * block.x
-                dy =  new_y -block.y
-                #print 'dx ', dx, '  || dy ', dy
-                block.move(dx,dy)
-
-        ### DO NOT touch it. proven to be in working order
-        if self.shift_rotation_dir:
-            self.rotation_dir *= -1
-
-        
-
-############################################################
-# ALL SHAPE CLASSES
-############################################################
-
- 
-class I_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x - 2, center.y),
-                  Point(center.x - 1, center.y),
-                  Point(center.x    , center.y),
-                  Point(center.x + 1, center.y)]
-        Shape.__init__(self, coords, 'blue')
-        self.shift_rotation_dir = True
-        self.center_block = self.blocks[2]
-
-class J_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x - 1, center.y),
-                  Point(center.x    , center.y),
-                  Point(center.x + 1, center.y),
-                  Point(center.x + 1, center.y + 1)]
-        Shape.__init__(self, coords, 'orange')        
-        self.center_block = self.blocks[1]
-
-class L_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x - 1, center.y),
-                  Point(center.x    , center.y),
-                  Point(center.x + 1, center.y),
-                  Point(center.x - 1, center.y + 1)]
-        Shape.__init__(self, coords, 'cyan')        
-        self.center_block = self.blocks[1]
-
-
-class O_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x    , center.y),
-                  Point(center.x - 1, center.y),
-                  Point(center.x   , center.y + 1),
-                  Point(center.x - 1, center.y + 1)]
-        Shape.__init__(self, coords, 'red')
-        self.center_block = self.blocks[0]
-
-    def rotate(self, board):
-        # Override Shape's rotate method since O_Shape does not rotate
-        return 
-
-class S_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x    , center.y),
-                  Point(center.x    , center.y + 1),
-                  Point(center.x + 1, center.y),
-                  Point(center.x - 1, center.y + 1)]
-        Shape.__init__(self, coords, 'green')
-        self.center_block = self.blocks[0]
-        self.shift_rotation_dir = True
-        self.rotation_dir = -1
-
-
-class T_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x - 1, center.y),
-                  Point(center.x    , center.y),
-                  Point(center.x + 1, center.y),
-                  Point(center.x    , center.y + 1)]
-        Shape.__init__(self, coords, 'yellow')
-        self.center_block = self.blocks[1]
-
-
-class Z_shape(Shape):
-    def __init__(self, center):
-        coords = [Point(center.x - 1, center.y),
-                  Point(center.x    , center.y), 
-                  Point(center.x    , center.y + 1),
-                  Point(center.x + 1, center.y + 1)]
-        Shape.__init__(self, coords, 'magenta')
-        self.center_block = self.blocks[1]
-        self.shift_rotation_dir = True
-        self.rotation_dir = -1      
-
-
-
-############################################################
-# BOARD CLASS
-############################################################
-
-class Board():
-    ''' Board class: it represents the Tetris board
-
-        Attributes: width - type:int - width of the board in squares
-                    height - type:int - height of the board in squares
-                    canvas - type:CanvasFrame - where the pieces will be drawn
-                    grid - type:Dictionary - keeps track of the current state of
-                    the board; stores the blocks for a given position
-    '''
-    
-    def __init__(self, win, width, height):
-        self.width = width
-        self.height = height
-
-        #set the var that defines how much speed should increase 
-        self.delta_delay = 0
-        self.board_delay = 2000 #ms
-
-
-        # create a canvas to draw the tetris shapes on
-        self.canvas = CanvasFrame(win, self.width * Block.BLOCK_SIZE*2,
-                                        self.height * Block.BLOCK_SIZE)
-        self.canvas.setBackground('light gray')
-
-        #draw a vertical line to separate gaming part from info part
-        line = Line(Point(self.width * Block.BLOCK_SIZE, 0),\
-                          Point(self.width * Block.BLOCK_SIZE,self.height * Block.BLOCK_SIZE ))
-        line.draw(self.canvas)
-
-        #display rules of the game
-        rules = Text(Point(self.canvas.getWidth()/1.35, self.canvas.getHeight()/1.5),\
-                     '        INSTRUCTIONS :            \n\n'+\
-                     '*   <- | ->  arrows to move         \n'+\
-                     '*   "up" arrow to rotate               \n'+\
-                     '*   "down" arrow to move down\n'+\
-                     '*   "space" to drop                      \n'+\
-                     '*   "p" to pause                           \n'+\
-                     '*   "s" to resume                         \n'+\
-                     '*   "d" to show debug info          \n\n'+\
-                     '         SCORING :                       \n\n'+\
-                     '*   1   point   - 1 row                   \n'+\
-                     '*   4   points - 2 rows                  \n'+\
-                     '*   9   points - 3 rows                  \n'+\
-                     '* 16   points - 4 rows                  \n' )
-        rules.draw(self.canvas)
-
-        #set up score counter and text holder for it
-        self.score = 0
-        self.score_text = Text(Point(self.canvas.getWidth()/1.35,\
-                                     self.canvas.getHeight()/3), 'SCORE : '+str(self.score))
-        self.score_text.draw(self.canvas)
-
-        #speed to display
-        self.speed = self.board_delay - self.delta_delay
-        self.speed_text = Text(Point(self.canvas.getWidth()/1.35,\
-                                     self.canvas.getHeight()/3.5), 'DROP DOWN DELAY ms : '+\
-                                str(self.speed))
-        self.speed_text.draw(self.canvas)
-        
-        #file handle to read and write best result
-        self.result_file = self.read_best_result()
-        
-        #best_score and best speed so far
-        if (self.result_file is not None):
-            lines = self.result_file.readlines()
-
-            self.best_score = int(lines[0])
-            self.best_speed = int(lines[1])
-        else:
-            self.best_score = 0
-            self.best_speed = 0
-        
-        # create an empty dictionary
-        # currently we have no shapes on the board
-        self.grid = {}
-
-    def draw_shape(self, shape):
-        ''' Parameters: shape - type: Shape
-            Return value: type: bool
-
-            draws the shape on the board if there is space for it
-            and returns True, otherwise it returns False
-        '''
-        if shape.can_move(self, 0, 0):
-            shape.draw(self.canvas)
-            return True
-        return False
-
-    def can_move(self, x, y):
-        ''' Parameters: x - type:int
-                        y - type:int
-            Return value: type: bool
-
-            1. check if it is ok to move to square x,y
-            if the position is outside of the board boundaries, can't move there
-            return False
-
-            2. if there is already a block at that postion, can't move there
-            return False
-
-            3. otherwise return True
-            
-        '''
-        if x < 0 or x > self.width-1 or y < 0 or y > self.height-1 or (x,y) in self.grid.keys():
-            return False
-        else:
-            return True
-
-    def add_shape(self, shape):
-        ''' Parameter: shape - type:Shape
-            add a shape to the grid, i.e.
-            add each block to the grid using its
-            (x, y) coordinates as a dictionary key
-        '''
-        for block in shape.get_blocks():
-            self.grid[(block.x, block.y)] = block        
-
-    def update_delay(self):
-        ''' update drop down delay '''
-        self.speed = self.board_delay - self.delta_delay
-        self.speed_text.undraw()
-        self.speed_text = Text(Point(self.canvas.getWidth()/1.35,\
-                                     self.canvas.getHeight()/3.5), 'DROP DOWN DELAY ms : '+\
-                                str(self.speed))
-        self.speed_text.draw(self.canvas)
-
-            
-    def update_score(self, n):
-        ''' Parameters: n - type: int
-           update the score based on the number of
-           rows deleted in one move
-        '''
-        #update score value
-        if n == 1:
-            self.score += 1
-        elif n == 2:
-            self.score += 4
-        elif n == 3:
-            self.score += 9
-        elif n == 4:
-            self.score += 16
-        #update score text
-        self.score_text.undraw()
-        self.score_text = Text(Point(self.canvas.getWidth()/1.35,\
-                                     self.canvas.getHeight()/3), 'SCORE : '+str(self.score))
-        self.score_text.draw(self.canvas)
-
-
-    def delete_row(self, y):
-        ''' Parameters: y - type:int
-            remove all the blocks in row y
-            to remove a block you must remove it from the grid
-            and erase it from the screen.
-        '''
-        for x in range(0, self.width):
-            self.grid[(x,y)].undraw()
-            del self.grid[(x,y)]
-        
-    def is_row_complete(self, y):        
-        ''' Parameter: y - type: int
-            Return value: type: bool
-
-            for each block in row y
-            check if there is a block in the grid (use the in operator) 
-            if there is one square that is not occupied, return False
-            otherwise return True
-        '''
-        for x in range(0,self.width):
-            if (x,y) not in self.grid:
-                return False
-        return True
-    
-    def move_down_rows(self, y_start):
-        ''' Parameters: y_start - type:int                        
-            for each row from y_start to the top
-                for each column
-                    check if there is a block in the grid
-                    if there is, remove it from the grid
-                    and move the block object down on the screen
-                    and then place it back in the grid in the new position
-        '''
-        y = y_start
-        while y >= 0:
-            for x in range(0,self.width):
-                if  (x,y) in self.grid:
-                    tb = self.grid[(x,y)]
-                    self.grid[(x,y)].undraw()
-                    del self.grid[(x,y)]                    
-                    self.grid[(x, y + 1)] = Block(Point(tb.x,tb.y+1),tb.color)
-                    self.grid[(x,y+1)].draw(self.canvas)
-            y -= 1
-    
-    def remove_complete_rows(self):
-        ''' removes all the complete rows
-            1. for each row, y, 
-            2. check if the row is complete
-                if it is,
-                    update complete rows counter
-                    delete the row
-                    move all rows down starting at row y - 1
-               update score
-        '''
-        complete_rows = 0
-        for y in range(0, self.height):
-            if self.is_row_complete(y):
-                complete_rows += 1
-                self.delete_row(y)
-                self.move_down_rows(y-1)
-        self.update_score(complete_rows)
-        #increase speed
-        if (complete_rows != 0):
-            self.delta_delay += self.score
-            self.update_delay()
-                    
-    def game_over(self):
-        ''' display "Game Over" message in the center of the board
-             use the Text class from the graphics library
-        '''
-        gg = Text(Point(self.canvas.getWidth()/2, self.canvas.getHeight()/2), 'GAME OVER')
-        gg.draw(self.canvas)
-        self.save_result()
-
-    def save_result(self):
-        ''' save current score and drop down speed in a champion.txt file'''
-        if (self.score > self.best_score):
-            self.result_file = self.read_best_result()
-            self.result_file.truncate(0) #erase file info
-            self.result_file.write(str(self.score)+'\n'+str(self.speed))
-            self.result_file.close()
-            congrats = Text(Point(self.canvas.getWidth()/4,  self.canvas.getHeight()/4), 'CONGRATULATIONS\n'+\
-                            'YOU ARE THE NEW CHAMPION\nprevious best result: \nscore = %d\n speed = %d' % \
-                            (self.best_score, self.best_speed) )
-            congrats.draw(self.canvas)
-        else:
-            self.result_file.close()
-
-    def read_best_result(self):
-        ''' read previous result to determine if current result is better and
-            needs to be saved'''
-        try: 
-            r_file = open('./champion.txt', 'r+')
-        except IOError, e:
-            print 'file open error :', e
-            return None
-        return r_file
-        
-    
-        
-
-############################################################
-# TETRIS CLASS
-############################################################
-
-class Tetris():
+class Tetris:
     ''' Tetris class: Controls the game play
         Attributes:
             SHAPES - type: list (list of Shape classes)
@@ -552,26 +16,25 @@ class Tetris():
             delay - type:int - the speed in milliseconds for moving the shapes
             current_shapes - type: Shape - the current moving shape on the board
     '''
-    
+
     SHAPES = [I_shape, J_shape, L_shape, O_shape, S_shape, T_shape, Z_shape]
-    DIRECTION = {'Left':(-1, 0), 'Right':(1, 0), 'Down':(0, 1)}
+    DIRECTION = {'Left': (-1, 0), 'Right': (1, 0), 'Down': (0, 1)}
     BOARD_WIDTH = 10
     BOARD_HEIGHT = 20
     onPause = False
-    
-    
+
     def __init__(self, win):
         self.board = Board(win, self.BOARD_WIDTH, self.BOARD_HEIGHT)
         self.win = win
-        self.delay = self.board.board_delay #ms
+        self.delay = self.board.board_delay  # ms
 
         # sets up the keyboard events
         # when a key is called the method key_pressed will be called
         self.win.bind_all('<Key>', self.key_pressed)
 
-        #create next shape to be displayed
+        # create next shape to be displayed
         self.next_shape = self.create_new_shape()
-        
+
         # set the current shape to a random new shape
         self.current_shape = self.create_new_shape()
 
@@ -580,9 +43,9 @@ class Tetris():
         self.board.draw_shape(self.current_shape)
         self.animate_shape()
 
-        #initialize pause text for later use when p is pressed
-        self.pause = Text(Point(self.board.canvas.getWidth()/4,\
-                               self.board.canvas.getHeight()/2), 'PAUSE')
+        # initialize pause text for later use when p is pressed
+        self.pause = Text(Point(self.board.canvas.getWidth() / 4, \
+                                self.board.canvas.getHeight() / 2), 'PAUSE')
 
     def create_new_shape(self):
         ''' Return value: type: Shape
@@ -591,19 +54,18 @@ class Tetris():
              at y = 0 and x = int(self.BOARD_WIDTH/2)
             return the shape
         '''
-        #pick a random number from the SHAPES list attribute of the tetris class
-        #create new shape
-        return  random.choice(self.SHAPES)(Point(int(self.BOARD_WIDTH/2),0))
+        # pick a random number from the SHAPES list attribute of the tetris class
+        # create new shape
+        return random.choice(self.SHAPES)(Point(int(self.BOARD_WIDTH / 2), 0))
 
-        
     def animate_shape(self):
         ''' animate the shape - move down at equal intervals
             specified by the delay attribute
         '''
-        if (not self.onPause):
+        if not self.onPause:
             self.do_move('Down')
             self.win.after(self.delay - self.board.delta_delay, self.animate_shape)
-    
+
     def do_move(self, direction):
         ''' Parameters: direction - type: string
             Return value: type: bool
@@ -623,14 +85,14 @@ class Tetris():
         tup = self.DIRECTION[direction]
         dx = tup[0]
         dy = tup[1]
-        if self.current_shape.can_move(self.board, dx,dy):
+        if self.current_shape.can_move(self.board, dx, dy):
             self.current_shape.move(dx, dy)
             return True
-        elif tup == (0,1):
+        elif tup == (0, 1):
             self.board.add_shape(self.current_shape)
             self.current_shape = self.next_shape
             self.next_shape = self.create_new_shape()
-            if (self.board.draw_shape(self.current_shape)): 
+            if self.board.draw_shape(self.current_shape):
                 self.board.remove_complete_rows()
             else:
                 self.board.game_over()
@@ -641,16 +103,15 @@ class Tetris():
         ''' Checks if the current_shape can be rotated and
             rotates if it can
         '''
-        
-###        print 'can we rotate?', self.current_shape.can_rotate(self.board)
+
+        ###        print 'can we rotate?', self.current_shape.can_rotate(self.board)
         if self.current_shape.can_rotate(self.board):
             self.current_shape.rotate(self.board)
-    
+
     def key_pressed(self, event):
         ''' this function is called when a key is pressed on the keyboard
-            it currenly just prints the value of the key
 
-            Modify the function so that if the user presses the arrow keys
+            if the user presses the arrow keys
             'Left', 'Right' or 'Down', the current_shape will move in
             the appropriate direction
 
@@ -661,9 +122,9 @@ class Tetris():
                 the shape should rotate.
 
         '''
-        #key is used to get the coordianates dx and dy to be used in the do_move method 
+        # key is used to get the coordianates dx and dy to be used in the do_move method
         key = event.keysym
-        #print key
+        # print key
         if key == 'Up':
             if not self.onPause:
                 self.do_rotate()
@@ -671,12 +132,12 @@ class Tetris():
         elif key == 'space':
             if not self.onPause:
                 while self.do_move('Down'):
-                    { }
+                    {}
         elif key == 'p':
             self.onPause = True
             self.pause.draw(self.board.canvas)
-            
-        elif  key == 'd':
+
+        elif key == 'd':
             iter = self.board.grid.iterkeys()
             for pair in sorted(iter):
                 print pair,
@@ -688,7 +149,8 @@ class Tetris():
         else:
             if not self.onPause:
                 self.do_move(key)
-       
+
+
 ################################################################
 # Start the game
 ################################################################
